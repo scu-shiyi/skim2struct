@@ -1,0 +1,25 @@
+# environment.yml for Skim2Struct
+name: skim2struct
+channels:
+  - bioconda
+  - conda-forge
+  - default
+
+dependencies:
+  - python=3.12
+
+  - iqtree
+  - hyphy=2.5.71 
+  - fpocket
+  - autodock-vina
+  - openbabel
+  - mgltools
+  - pip
+  - pip:
+      - biopython
+      - matplotlib
+      - seaborn
+      - pandas
+      - numpy
+      - requests
+      - psutil
