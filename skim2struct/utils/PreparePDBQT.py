@@ -4,7 +4,7 @@ import os
 
 # 动态获取项目路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MGLTOOLS_DIR = os.path.join(BASE_DIR, 'external/mgltools_x86_64Linux2_1.5.7')
+MGLTOOLS_DIR = os.path.join(BASE_DIR, 'utils/mgltools_x86_64Linux2_1.5.7')
 PYTHONSH = os.path.join(MGLTOOLS_DIR, 'bin/pythonsh')
 
 
