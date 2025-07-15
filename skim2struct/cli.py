@@ -5,11 +5,11 @@ from skim2struct.TreeConservationModule.core import run as run_tree
 from skim2struct.EvoDnDsModule.core import run as run_dnds
 from skim2struct.DockingModule.core import run as run_docking
 import urllib.request
-
+import tarfile
 # Constants for MGLTools runtime installation
 MGL_URL      = "https://ccsb.scripps.edu/download/532/"
-MGL_ARCHIVE  = "mgltools_x86_64Linux2.1.5.7.tar.gz"
-MGL_DIR_NAME = "mgltools_x86_64Linux2.1.5.7"
+MGL_ARCHIVE  = "mgltools_x86_64Linux2_1.5.7.tar.gz"
+MGL_DIR_NAME = "mgltools_x86_64Linux2_1.5.7"
 
 def ensure_mgltools():
     """Download, extract and patch MGLTools into skim2struct/utils if not already present."""
