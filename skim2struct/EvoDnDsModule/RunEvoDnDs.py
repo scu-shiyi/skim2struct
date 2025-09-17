@@ -1,29 +1,187 @@
-# skim2struct/EvoDnDsModule/RunEvoDnDs.py
-import os
-from pathlib import Path
+# skim2struct/EvoDnDsModule/plot.py
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-from skim2struct.utils.prepare_fasta_batch import preprocess_fasta_dir
-from skim2struct.EvoDnDsModule.calcul_dnds import CalculDnDs
-from skim2struct.utils import EvoScoring
-from skim2struct.EvoDnDsModule.plot import generate_summary_plot
-from skim2struct.EvoDnDsModule.prepare_data import batch_run                # 复用你已有的批量函数
+from skim2struct.utils.EvoScoring import scoring
+from skim2struct.EvoDnDsModule.calcul_dnds import run_dnds_parallel
+from pathlib import Path
+import random
+import glob
+import os
 
 
+def load_evo_scores(file_list: str) -> dict[str, list[float]]:
+    """
+    读取 evo_output 目录下的每个基因 csv（形如 geneX_NLL_score.csv）
+    文件格式：第一列 name，其余列为该基因的分数（通常只有一列）
+    返回：{gene: [scores...]}
+    """
+    out = {}
+    for csv in file_list:
+        df = pd.read_csv(csv)
+        gene = Path(csv).stem.replace("_NLL_score", "")
+        gene_cols = [c for c in df.columns if c != "name"]
+        if not gene_cols:
+            continue
+        vals = pd.to_numeric(df[gene_cols[0]], errors="coerce").dropna().to_list()
+        out[gene] = vals
+    return out
+
+def load_dnds_m0_vertical(results):
+    m0_map, sig_map = {}, {}
+    for item in results:
+        if len(item) == 2:
+            gene, csv_path = item
+        else:
+            gene, _, csv_path = item
+        p = Path(csv_path)
+        if not p.exists():
+            print(f"⚠ 没找到结果文件：{p}")
+            continue
+
+        m0_val = None
+        sig = ""
+        # 逐行解析（健壮，不依赖 pandas）
+        for raw in p.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = raw.strip()
+            if not line or "," not in line:
+                continue
+            key, val = line.split(",", 1)
+            key = key.strip().lower()
+            val = val.strip()
+            if key == "m0_omega":
+                try:
+                    m0_val = float(val)
+                except ValueError:
+                    m0_val = None
+            elif key == "lrt_sig":
+                sig = val  # 可能是 '', '*', '**'
+
+        if m0_val is not None:
+            m0_map[gene] = m0_val
+        sig_map[gene] = sig
+    return m0_map, sig_map
+
+def plot_evo_vs_m0_bars(
+    evo_map: dict[str, list[float]],
+    m0_map: dict[str, float],
+    sig_map: dict[str, str],
+    out_png: str,
+    title: str = "Evo and dN/dS Scores",
+    dpi: int = 300,
+    order: str = "alpha",   # 'alpha' 按字母；'evo' 按Evo均值；'m0' 按M0
+):
+    # 嵌套柱形图
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    # —— 基因集合：两边都要有值（Evo 至少1个数；M0 为有限数）——
+    all_genes = sorted(set(evo_map) & set(m0_map))
+    genes = []
+    for g in all_genes:
+        xs = [v for v in (evo_map.get(g) or []) if v is not None and np.isfinite(v)]
+        m0 = m0_map.get(g, None)
+        if xs and (m0 is not None) and np.isfinite(m0):
+            genes.append(g)
+    if not genes:
+        raise ValueError("没有同时含有效 Evo 与 M0_omega 的基因。")
+
+    # —— 排序 —— 
+    if order == "evo":
+        genes.sort(key=lambda g: np.mean([v for v in evo_map[g] if v is not None and np.isfinite(v)]))
+    elif order == "m0":
+        genes.sort(key=lambda g: float(m0_map[g]))
+    else:
+        genes.sort()
+
+    # —— 统计 —— 
+    evo_mean, evo_std, m0_vals = [], [], []
+    for g in genes:
+        xs = [v for v in (evo_map.get(g) or []) if v is not None and np.isfinite(v)]
+        mu = np.mean(xs)
+        sd = np.std(xs, ddof=1) if len(xs) > 1 else 0.0
+        evo_mean.append(mu)
+        evo_std.append(sd)
+        m0_vals.append(float(m0_map[g]))
+
+    evo_mean = np.array(evo_mean, dtype=float)
+    evo_std  = np.array(evo_std, dtype=float)
+    m0_vals  = np.array(m0_vals, dtype=float)
+
+    # —— 画布 —— 
+    n = len(genes)
+    fig_w = max(8, 0.55 * n + 3)
+    fig_h = 4.8
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+
+    centers = np.arange(n, dtype=float)
+
+    # 宽度：外层柱更宽，内层柱更窄，且同心绘制
+    width_outer = 0.4
+    width_inner = 0.3
+
+    # —— 外层空心柱（Evo）+ 误差棒 —— 
+    bars_evo = ax.bar(
+        centers, evo_mean, width=width_outer,
+        # facecolor="none", edgecolor="#F0868C", linewidth=1.5,
+        facecolor="none", edgecolor="#799ad5", linewidth=1.5,
+        label="Evo (mean±sd)", zorder=2
+    )
+    ax.errorbar(
+        centers, evo_mean, yerr=evo_std,
+        fmt='none', ecolor="#799ad5", elinewidth=1.1, capsize=3, zorder=3
+    )
+    "#799ad5" "#AFC7E8" "#92cbea" "#F9BEB9"
+                                                                                                                                                                      
+    # —— 内层实心柱（M0_omega）嵌入 —— 
+    bars_m0 = ax.bar(
+        centers, m0_vals, width=width_inner,
+        # color="#92cbea", edgecolor="#92cbea", linewidth=1.0,
+        color="#F3A2A2", linewidth=1.0,
+        label="dN/dS (M0 ω)", zorder=1
+    )
+
+    # —— 显著性标注 —— 
+    for i, g in enumerate(genes):
+        star = (sig_map.get(g) or "").strip()
+        if not star or star.lower() == "ns":
+            continue
+        top = max(evo_mean[i] + evo_std[i], m0_vals[i])
+        y_text = top * 1.01 if top > 0 else 0.02
+        ax.text(centers[i], y_text, star, ha="center", va="bottom",
+                fontsize=10, color="black", zorder=4)
+
+    # —— 轴与标签 —— 
+    ax.set_xlim(-0.7, n - 0.3)
+    ax.set_xticks(centers)
+    ax.set_xticklabels(genes, rotation=45, ha="right")
+    ax.set_ylabel("Score / ω (M0)")
+    if title:
+        ax.set_title(title)
+    ax.axhline(y=1, color="#F3A2A2", linestyle="--", linewidth=1.2)
+    ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1), borderaxespad=0)
 
 
-
-def RunEvoDnDs(fasta_dir, output_dir, tree_path, outgroup=None):
-    os.makedirs(output_dir, exist_ok=True)
-    fasta_paths = [str(p) for p in Path(fasta_dir).rglob("*") if p.suffix.lower() in [".fa", ".fasta", ".fas", ".txt"]]
-    processed_paths, processed_dir = preprocess_fasta_dir(fasta_paths, output_dir, outgroup)
-
-    combined_df = batch_run(processed_paths, str(output_dir), tree_path)
-
-    summary_csv = os.path.join(output_dir, "EvoDnDs_summary.csv")
-    combined_df.to_csv(summary_csv, index=False)
-    print(f"Summary CSV saved to {summary_csv}")
-
-    plot_path = os.path.join(output_dir, "EvoDnDs_Result.png")
-    generate_summary_plot(combined_df, plot_path)
-
-    return summary_csv, plot_path
+    # —— 保存 —— 
+    out_png = Path(out_png)
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(out_png, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[plot] Saved: {out_png}")
+    return out_png
+def RunEvoDnDs(fasta_input, output_dir, fasta_tree_map, outgroup):
+    # outpout = "/home/shiyi/Output_dir/evo_dnds_compare"
+    mapping = {}
+    if fasta_tree_map is not None:
+        df = pd.read_csv(fasta_tree_map, sep="\t")
+        for _, row in df.iterrows():
+            mapping[str(Path(row["fasta"]))] = None if pd.isna(row["tree"]) else str(row["tree"])
+    evo_output = Path(output_dir) / 'evo_output'
+    out_png = Path(output_dir) / 'Evo_dNdS.png'
+    nll_score_csv_ls = scoring(fasta_input, str(evo_output))
+    dnds_record = run_dnds_parallel(fasta_input, output_dir, outgroups= outgroup, mapping=mapping)
+    evo_map = load_evo_scores(nll_score_csv_ls)
+    m0_map, sig_map = load_dnds_m0_vertical(dnds_record)
+    return plot_evo_vs_m0_bars(evo_map, m0_map,sig_map, out_png=out_png)
