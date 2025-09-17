@@ -11,7 +11,7 @@ from skim2struct.TreeConservationModule import conservation_calcul
 from skim2struct.utils import TreeFunction
 from skim2struct.TreeConservationModule.plot import draw_tree_and_heatmap
 from skim2struct.utils.Phylip_Prepare import prepare_paml_input2
-from skim2struct.utils.site import run_pair_model
+from skim2struct.utils.site_model import run_pair_model
 
 def remove_outgroups(fasta_path, out_path, outgroups=None):
 
