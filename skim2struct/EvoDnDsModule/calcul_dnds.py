@@ -1,4 +1,4 @@
-from skim2struct.utils.site import run_pair_model
+from skim2struct.utils.site_model import run_pair_model
 from pathlib import Path
 import os
 from skim2struct.utils.Phylip_Prepare import prepare_paml_input1
