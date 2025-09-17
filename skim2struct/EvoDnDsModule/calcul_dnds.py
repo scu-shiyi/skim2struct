@@ -1,75 +1,208 @@
-# 通过hyphy的slac模式计算dn/ds评分
-import os
-import subprocess
-import re
-import pandas as pd
-import psutil
+from skim2struct.utils.site import run_pair_model
 from pathlib import Path
-from Bio import SeqIO, Phylo
-import shutil
+import os
+from skim2struct.utils.Phylip_Prepare import prepare_paml_input1
+import re
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import numpy as np
 
-class CalculDnDs:
-    def __init__(self, fasta_file, output_dir, tree_file, outgroups=None):
-        self.fasta_file = fasta_file
-        self.output_dir = output_dir
-        self.tree_file = tree_file
-        self.outgroups = outgroups or []
 
-        self.temp_hyphy_dir = os.path.join(self.output_dir, "dnds_dir", "temp_hyphy")
-        os.makedirs(self.temp_hyphy_dir, exist_ok=True)
-        self.dnds_dir = os.path.join(self.output_dir, "dnds_dir")
-        os.makedirs(self.dnds_dir, exist_ok=True)
-
-        self.hyphy_exec = shutil.which("hyphy")
-
-    def run_single_return(self):
-        label = Path(self.fasta_file).stem
-        dnds_value = self._calculate_dnds(self.fasta_file, self.tree_file)
-        return dnds_value
-
-    def _calculate_dnds(self, fasta_file, tree_file):
-        label = Path(fasta_file).stem
-        log_file = os.path.join(self.temp_hyphy_dir, label + '.log')
-        json_file = os.path.join(self.temp_hyphy_dir, label + '.json')
-        physical_cores = psutil.cpu_count(logical=False)
-        threads = int(physical_cores * 1.2)
-        if os.path.isfile(log_file):
-            try:
-                existing_value = self._parse_dnds(log_file)
-                if existing_value is not None:
-                    print(f"已检测到旧的 log 文件，直接读取 {label}基因的dN/dS")
-                    return existing_value
-            except Exception:
-                pass
+def parse_tree_branch_values(tree_text: str) -> dict[str, float]:
+    """
+    Extract branch values for leaves from a dS tree or dN tree.
+    Returns {species: value}.
+    """
+    out = {}
+    # Match pattern: SpeciesName: number
+    pat = re.compile(r'([\w\.\'\-]+):\s*([0-9.eE+-]+)')
+    for sp, val in pat.findall(tree_text):
         try:
-            subprocess.run([
-                self.hyphy_exec, "slac",
-                "--alignment", fasta_file,
-                "--tree", tree_file,
-                "--threads", str(threads),
-                "--output", json_file
-            ], stdout=open(log_file, "w"), stderr=subprocess.STDOUT, check=True)
+            out[sp] = float(val)
+        except ValueError:
+            continue
+    return out
 
-            return self._parse_dnds(log_file)
-        except subprocess.CalledProcessError:
-            alignment_count, tree_count = self._check_alignment_tree_consistency(fasta_file, tree_file)
-            if alignment_count != tree_count:
-                print(f"⚠ 警告：序列文件中物种数量 = {alignment_count}，进化树中物种数量 = {tree_count}，二者不一致！")
-            else:
-                print(f"⚠ {label}HyPhy失败，但序列与树的物种数一致，可能为其他参数错误")
-            return None
 
-    def _check_alignment_tree_consistency(self, fasta_file, tree_file):
-        alignment_count = sum(1 for _ in SeqIO.parse(fasta_file, "fasta"))
-        tree = Phylo.read(tree_file, "newick")
-        tree_count = len(tree.get_terminals())
-        return alignment_count, tree_count
+def get_omega_from_freeratio_mlc(freeratio_mlc: Path,
+                                species: list[str],
+                                min_ds: float = 1e-3,
+                                min_dn: float = 1e-3) -> dict[str, float | None]:
+    """
+    Extract per-species ω (dN/dS) from a FreeRatio .mlc file,
+    and filter unreliable results using dN/dS tree values.
+    """
+    text = Path(freeratio_mlc).read_text(errors="ignore")
 
-    def _parse_dnds(self, logfile):
-        pattern = re.compile(r'non-synonymous/synonymous rate ratio.*?=\s*([-+]?\d*\.?\d+)', re.IGNORECASE)
-        with open(logfile) as f:
-            for line in f:
-                match = pattern.search(line)
-                if match:
-                    return float(match.group(1))
+    # 1) Capture "w ratios as node labels"
+    omega_map = {}
+    for sp in species:
+        pat = re.compile(rf'{re.escape(sp)}\s*#\s*([0-9.eE+-]+)')
+        m = pat.search(text)
+        if m:
+            try:
+                omega_map[sp] = float(m.group(1))
+            except ValueError:
+                omega_map[sp] = None
+        else:
+            omega_map[sp] = None
+
+    # 2) Capture dS tree
+    ds_match = re.search(r'dS tree:\s*(\(.+?\));', text, re.S)
+    ds_map = parse_tree_branch_values(ds_match.group(1)) if ds_match else {}
+
+    # 3) Capture dN tree
+    dn_match = re.search(r'dN tree:\s*(\(.+?\));', text, re.S)
+    dn_map = parse_tree_branch_values(dn_match.group(1)) if dn_match else {}
+
+    # 4) Filtering
+    out = {}
+    for sp in species:
+        omega = omega_map.get(sp)
+        ds = ds_map.get(sp, None)
+        dn = dn_map.get(sp, None)
+
+        if omega is None or not np.isfinite(omega):
+            out[sp] = None
+            continue
+
+        # Discard if dS or dN is too small
+        if (ds is not None and ds < min_ds) or (dn is not None and dn < min_dn):
+            out[sp] = None
+        elif omega > 3:
+            out[sp] = None
+        else:
+            out[sp] = omega
+
+    return out
+
+def parse_m0_omega(m0_mlc: str | Path) -> float | None:
+    """
+    Parse overall omega from an M0 .mlc file.
+    Supports both 'omega (dN/dS) =' and 'w (dN/dS) =' formats.
+    """
+    text = Path(m0_mlc).read_text(errors="ignore")
+    m = re.search(r'\bomega\s*\(dN/dS\)\s*=\s*([0-9.eE+-]+)', text)
+    if not m:
+        m = re.search(r'\bw\s*\(dN/dS\)\s*=\s*([0-9.eE+-]+)', text)
+    if not m:
         return None
+    try:
+        return float(m.group(1))
+    except ValueError:
+        return None
+    
+def save_omega_row(tsv_path: Path, gene: str, species: list[str], omega_map,m0_omega,lrt_result):
+    """
+    Write one row to the summary table: first column = Gene,
+    then species-specific ω values in the given order.
+    If the file does not exist, create it with header. Missing values = blank.
+    """
+    tsv_path.parent.mkdir(parents=True, exist_ok=True)
+    # Significance annotation
+    if lrt_result and "p" in lrt_result:
+        p_val = lrt_result["p"]
+        if lrt_result["sig"].get("0.01"):
+            sig = "**"
+        elif lrt_result["sig"].get("0.05"):
+            sig = "*"
+        else:
+            sig = "ns"
+    else:
+        p_val, sig = "", "ns"
+
+    with tsv_path.open("w", encoding="utf-8") as f:
+        f.write(f"name,{gene}\n")
+        for sp in species:
+            val = omega_map.get(sp)
+            f.write(f"{sp},{'' if val is None else val}\n")
+        f.write("\n")
+        f.write(f"M0_omega,{'' if m0_omega is None else m0_omega}\n")
+        f.write("\n")
+        f.write(f"LRT_p,{'' if p_val == '' else p_val}\n")
+        f.write(f"LRT_sig,{sig}\n")
+
+def run_one_gene_freeratio(fasta_file: str, base_output: str, tree_file: str | None = None,
+                           outgroups: list[str] | None = None,
+                           omp_threads: int = 1) -> tuple[str, Path, Path]:
+    """
+    Run full FreeRatio analysis for a single gene:
+    prepare input → run FreeRatio → parse ω.
+    Returns (gene_name, mlc_path, summary_row_path).
+    """
+    gene = Path(fasta_file).stem
+    root = Path(base_output)
+    # gene_dir = Path(base_output) / gene
+    env = os.environ.copy()
+    # Prevent codeml from overusing threads
+    env["OMP_NUM_THREADS"] = str(omp_threads)
+
+    # 1) Prepare input (remove outgroups and normalize IDs)
+    work_dir, phylip_path, newick_path, species = prepare_paml_input1(
+        fasta_file, str(root), tree_path=tree_file, outgroups=outgroups or []
+    )
+
+    # 2) Run FreeRatio (model name must be uppercase "FREERATIO")
+    lrt_result ,mo_mlc, free_mlc= run_pair_model(phylip_path, newick_path, str(root / "paml_output"), model="FREERATIO", gene_name=gene)
+
+    # 3) Parse ω and save one row for this gene
+    omega_map = get_omega_from_freeratio_mlc(free_mlc, species)
+    mo_omega = parse_m0_omega(mo_mlc)
+
+    summary_csv = Path(base_output) / 'paml_output' / gene / f"{gene}_omega.csv"
+    save_omega_row(summary_csv, gene, species, omega_map,mo_omega,lrt_result)
+
+    return gene, summary_csv
+
+def collect_fasta_files(fasta_input):
+    """Accept directory/semicolon-separated string/list, return fasta file list."""
+    if isinstance(fasta_input, str):
+        p = Path(fasta_input)
+        if p.is_dir():
+            return [str(p / f) for f in os.listdir(p) if f.endswith(('.fa', '.fasta', '.fas', '.txt', '.phy'))]
+        else:
+            return fasta_input.split(';')
+    elif isinstance(fasta_input, list):
+        return fasta_input
+    else:
+        raise ValueError("Invalid fasta input")
+    
+def run_dnds_parallel(fasta_files, output_dir: str,
+                      outgroups: list[str] | None = None,
+                      max_workers: int | None = None,
+                      omp_threads_each_codeml: int = 4,
+                      mapping: dict[str, str | None] | None = None,):
+
+    fasta_input = collect_fasta_files(fasta_files)
+    output_dir = str(Path(output_dir).resolve())
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    norm_map: dict[str, str | None] = {}
+    if mapping:
+        for k, v in mapping.items():
+            fk = str(Path(k).resolve())
+            if v is None or (isinstance(v, str) and v.strip() == ""):
+                norm_map[fk] = None
+            else:
+                tv = str(Path(v).resolve())
+                if not Path(tv).exists():
+                    print(f"Tree in mapping not found, fallback to auto-build: {fk} -> {tv}")
+                    norm_map[fk] = None
+                else:
+                    norm_map[fk] = tv
+
+    results = []
+    with ProcessPoolExecutor(max_workers=max_workers or os.cpu_count()) as ex:
+        futures = []
+        for fa in fasta_input:
+            fa_norm = str(Path(fa).resolve())
+            tree_for_fa = norm_map.get(fa_norm) if norm_map else None
+            futures.append(
+                ex.submit(run_one_gene_freeratio, fa_norm, output_dir,tree_for_fa, outgroups, omp_threads_each_codeml)
+            )
+        for fut in as_completed(futures):
+            try:
+                gene, per_gene_tsv = fut.result()
+                results.append((gene, per_gene_tsv))
+            except Exception as e:
+                print(f"Task failed: {e}")
+    return results
