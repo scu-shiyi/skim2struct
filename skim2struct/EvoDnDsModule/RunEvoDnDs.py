@@ -12,9 +12,9 @@ import os
 
 def load_evo_scores(file_list: str) -> dict[str, list[float]]:
     """
-    读取 evo_output 目录下的每个基因 csv（形如 geneX_NLL_score.csv）
-    文件格式：第一列 name，其余列为该基因的分数（通常只有一列）
-    返回：{gene: [scores...]}
+    Load Evo scores from output CSV files (e.g., geneX_NLL_score.csv).
+    File format: first column = "name", other columns = scores (usually one).
+    Returns {gene: [scores...]}.
     """
     out = {}
     for csv in file_list:
@@ -36,12 +36,12 @@ def load_dnds_m0_vertical(results):
             gene, _, csv_path = item
         p = Path(csv_path)
         if not p.exists():
-            print(f"⚠ 没找到结果文件：{p}")
+            print(f"Result file not found: {p}")
             continue
 
         m0_val = None
         sig = ""
-        # 逐行解析（健壮，不依赖 pandas）
+        # Robust line-by-line parsing (no dependency on pandas)
         for raw in p.read_text(encoding="utf-8", errors="ignore").splitlines():
             line = raw.strip()
             if not line or "," not in line:
@@ -55,7 +55,7 @@ def load_dnds_m0_vertical(results):
                 except ValueError:
                     m0_val = None
             elif key == "lrt_sig":
-                sig = val  # 可能是 '', '*', '**'
+                sig = val 
 
         if m0_val is not None:
             m0_map[gene] = m0_val
@@ -69,14 +69,10 @@ def plot_evo_vs_m0_bars(
     out_png: str,
     title: str = "Evo and dN/dS Scores",
     dpi: int = 300,
-    order: str = "alpha",   # 'alpha' 按字母；'evo' 按Evo均值；'m0' 按M0
+    order: str = "alpha",   
 ):
-    # 嵌套柱形图
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from pathlib import Path
 
-    # —— 基因集合：两边都要有值（Evo 至少1个数；M0 为有限数）——
+
     all_genes = sorted(set(evo_map) & set(m0_map))
     genes = []
     for g in all_genes:
@@ -85,9 +81,9 @@ def plot_evo_vs_m0_bars(
         if xs and (m0 is not None) and np.isfinite(m0):
             genes.append(g)
     if not genes:
-        raise ValueError("没有同时含有效 Evo 与 M0_omega 的基因。")
+        raise ValueError("No genes with both valid Evo and M0_omega values.")
 
-    # —— 排序 —— 
+
     if order == "evo":
         genes.sort(key=lambda g: np.mean([v for v in evo_map[g] if v is not None and np.isfinite(v)]))
     elif order == "m0":
@@ -95,7 +91,7 @@ def plot_evo_vs_m0_bars(
     else:
         genes.sort()
 
-    # —— 统计 —— 
+
     evo_mean, evo_std, m0_vals = [], [], []
     for g in genes:
         xs = [v for v in (evo_map.get(g) or []) if v is not None and np.isfinite(v)]
@@ -109,7 +105,7 @@ def plot_evo_vs_m0_bars(
     evo_std  = np.array(evo_std, dtype=float)
     m0_vals  = np.array(m0_vals, dtype=float)
 
-    # —— 画布 —— 
+
     n = len(genes)
     fig_w = max(8, 0.55 * n + 3)
     fig_h = 4.8
@@ -117,11 +113,11 @@ def plot_evo_vs_m0_bars(
 
     centers = np.arange(n, dtype=float)
 
-    # 宽度：外层柱更宽，内层柱更窄，且同心绘制
+
     width_outer = 0.4
     width_inner = 0.3
 
-    # —— 外层空心柱（Evo）+ 误差棒 —— 
+
     bars_evo = ax.bar(
         centers, evo_mean, width=width_outer,
         # facecolor="none", edgecolor="#F0868C", linewidth=1.5,
@@ -132,9 +128,9 @@ def plot_evo_vs_m0_bars(
         centers, evo_mean, yerr=evo_std,
         fmt='none', ecolor="#799ad5", elinewidth=1.1, capsize=3, zorder=3
     )
-    "#799ad5" "#AFC7E8" "#92cbea" "#F9BEB9"
+
                                                                                                                                                                       
-    # —— 内层实心柱（M0_omega）嵌入 —— 
+
     bars_m0 = ax.bar(
         centers, m0_vals, width=width_inner,
         # color="#92cbea", edgecolor="#92cbea", linewidth=1.0,
@@ -142,7 +138,6 @@ def plot_evo_vs_m0_bars(
         label="dN/dS (M0 ω)", zorder=1
     )
 
-    # —— 显著性标注 —— 
     for i, g in enumerate(genes):
         star = (sig_map.get(g) or "").strip()
         if not star or star.lower() == "ns":
@@ -152,7 +147,7 @@ def plot_evo_vs_m0_bars(
         ax.text(centers[i], y_text, star, ha="center", va="bottom",
                 fontsize=10, color="black", zorder=4)
 
-    # —— 轴与标签 —— 
+
     ax.set_xlim(-0.7, n - 0.3)
     ax.set_xticks(centers)
     ax.set_xticklabels(genes, rotation=45, ha="right")
@@ -163,7 +158,7 @@ def plot_evo_vs_m0_bars(
     ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1), borderaxespad=0)
 
 
-    # —— 保存 —— 
+
     out_png = Path(out_png)
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
@@ -171,6 +166,7 @@ def plot_evo_vs_m0_bars(
     plt.close(fig)
     print(f"[plot] Saved: {out_png}")
     return out_png
+    
 def RunEvoDnDs(fasta_input, output_dir, fasta_tree_map, outgroup):
     # outpout = "/home/shiyi/Output_dir/evo_dnds_compare"
     mapping = {}
