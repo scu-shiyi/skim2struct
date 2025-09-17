@@ -6,7 +6,7 @@ from skim2struct.EvoDnDsModule.core import run
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="skim2struct evodnds",
+        prog="skim2struct evoselect",
         description="Skim2Struct | EvoDnDs: Batch dN/dS and evolutionary scoring module",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
