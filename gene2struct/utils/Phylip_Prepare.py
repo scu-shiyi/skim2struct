@@ -7,7 +7,7 @@ from pathlib import Path
 from Bio import SeqIO
 from Bio import BiopythonDeprecationWarning
 from ete3 import Tree
-from skim2struct.utils.TreeLoad import TreeLoad  # 你已有的模块
+from gene2struct.utils.TreeLoad import TreeLoad  # 你已有的模块
 import subprocess
 from Bio.SeqRecord import SeqRecord
 
