@@ -1,11 +1,10 @@
-# skim2struct/cli.py
 import argparse
 import os
 import tarfile
-from skim2struct.TreeConservationModule.core import run as run_tree
-from skim2struct.EvoDnDsModule.core import run as run_dnds
-from skim2struct.DockingModule.core import run as run_docking
-from skim2struct.Geneminer2.core import run as run_geneminer
+from gene2struct.TreeConservationModule.core import run as run_tree
+from gene2struct.EvoDnDsModule.core import run as run_dnds
+from gene2struct.DockingModule.core import run as run_docking
+from gene2struct.Geneminer2.core import run as run_geneminer
 import urllib.request
 import shutil
 import subprocess
@@ -199,14 +198,14 @@ def ensure_mgltools():
 def main():
     ensure_mgltools()
     parser = argparse.ArgumentParser(
-        prog="skim2struct",
+        prog="gene2struct",
         description="Skim2Struct: A modular toolkit for gene evolution and structure-guided functional analysis.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # TreeConservation 子命令
+    # siteview
     parser_site = subparsers.add_parser("siteview", help="Visualize site-wise heterogeneity (positive selection, entropy) on a phylogenetic tree.")
     parser_site.add_argument("-f", "--fasta_path", required=True, metavar="FASTA_FILE",
                              help="Path to a single aligned FASTA file (e.g., -f gene1.aln.fasta)")
@@ -228,7 +227,7 @@ def main():
     parser_site.add_argument("--heatmap_path", default=None, metavar="ENTROPY_CSV",
                              help="Optional: Precomputed entropy matrix CSV (for debugging only).")
 
-    # EvoDnDs 子命令
+    # evoselect
     parser_dnds = subparsers.add_parser("evoselect", help="Run gene-level evolutionary selection analysis.")
     parser_dnds.add_argument("-i", "--fasta_input", required=True, metavar="FASTA_INPUT",
                              help="FASTA input: a directory of FASTA files or a text file listing fasta paths.")
@@ -240,7 +239,7 @@ def main():
     parser_dnds.add_argument("-g", "--og",metavar="SPECIES_NAME",nargs="+",default=None,
                              help="Optional: One or more outgroup species names for tree rooting (e.g., -g Sp1 Sp2 Sp3).")
 
-    # Docking 子命令
+    # Docking 
     parser_dock = subparsers.add_parser("docking", help="Run molecular docking and enzyme prediction.")
     parser_dock.add_argument("-p", "--protein_dir", required=True, metavar="PROTEIN_DIR",
                              help="Directory containing receptor structure subfolders.")
@@ -253,7 +252,7 @@ def main():
                              help="Directory to save results (default: ./DockingActivityAnalysis)")
 
 
-    # GeneMiner 子命令
+    # GeneMiner
     COMMAND_HELP = '''
     filter    Reference-based filtering of raw reads
     refilter  Refinement of filtered reads
