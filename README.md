@@ -8,12 +8,12 @@ This pipeline bridges phylogenomics and structural bioinformatics, providing an 
 
 ## Features
 
-- **CDS extraction** from shallow sequencing data
-- **Phylogenetic analysis** with site- and branch-level selection tests
-- **Conservation analysis** across genes and clades
-- **Protein structure prediction** (compatible with external structure predictors)
-- **Automated molecular docking** (batch docking of ligands and receptors)
-- Designed for **non-model organisms**
+- **CDS extraction** from shallow sequencing data  
+- **Phylogenetic analysis** with site- and branch-level selection tests  
+- **Conservation analysis** across genes and clades  
+- **Protein structure prediction** (compatible with external structure predictors)  
+- **Automated molecular docking** (batch docking of ligands and receptors)  
+- Designed for **non-model organisms**  
 
 ---
 
@@ -24,10 +24,3 @@ This pipeline bridges phylogenomics and structural bioinformatics, providing an 
 ```bash
 git clone https://github.com/scu-shiyi/Gene2Struct.git
 cd Gene2Struct
-
-2. Install MGLTools (required for docking preparation)
-	•	Download mgltools_x86_64Linux2_1.5.7 from the official website.
-	•	Place the extracted folder under the utils/ directory:
-Gene2Struct/utils/mgltools_x86_64Linux2_1.5.7
-You may also include a screenshot of this step for clarity:
-![MGLTools installation screenshot](docs/images/mgltools_install.png)
