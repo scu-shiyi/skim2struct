@@ -32,27 +32,12 @@ We recommend that users manually download the MGLTools package and place it unde
 
 ### 3. Configure the environment
 
-You can either use the provided Conda environment file or set up packages manually.
-
-Option 1 : Build from the YAML file
+Set up the Conda environment using the provided YAML file to ensure all required dependencies are installed.
 
 ```bash
 conda env create -f environment.yaml
 conda activate gene2struct
-```
-
-Option 2: Install dependencies individually
-
-```bash
-conda install -c bioconda iqtree trimal pal2nal fpocket openbabel paml autodock-vina
-```
-
-### 4. Install the package
-
-Finally, install the package into your environment:
-
-```bash
-pip install -e .
+pip install .
 ```
 
 ---
