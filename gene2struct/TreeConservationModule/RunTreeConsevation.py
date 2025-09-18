@@ -7,11 +7,11 @@ from pathlib import Path
 from Bio import SeqIO
 from Bio import Phylo
 
-from skim2struct.TreeConservationModule import conservation_calcul
-from skim2struct.utils import TreeFunction
-from skim2struct.TreeConservationModule.plot import draw_tree_and_heatmap
-from skim2struct.utils.Phylip_Prepare import prepare_paml_input2
-from skim2struct.utils.site_model import run_pair_model
+from gene2struct.TreeConservationModule import conservation_calcul
+from gene2struct.utils import TreeFunction
+from gene2struct.TreeConservationModule.plot import draw_tree_and_heatmap
+from gene2struct.utils.Phylip_Prepare import prepare_paml_input2
+from gene2struct.utils.site_model import run_pair_model
 
 def remove_outgroups(fasta_path, out_path, outgroups=None):
 
