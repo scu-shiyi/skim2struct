@@ -1,16 +1,16 @@
-# skim2struct/DockingModule/pipeline.py
+
 
 from pathlib import Path
 from typing import Dict, Tuple, Set
 import os
 import shutil
 import pandas as pd
-from skim2struct.utils.PreLigand import process_ligand
-from skim2struct.DockingModule.DockingExecutor import DockingExecutor
-from skim2struct.DockingModule.plot import plot
-from skim2struct.utils.PreReceptor import process_receptors, convert_cif_to_pdb,clean_filename
+from gene2struct.utils.PreLigand import process_ligand
+from gene2struct.DockingModule.DockingExecutor import DockingExecutor
+from gene2struct.DockingModule.plot import plot
+from gene2struct.utils.PreReceptor import process_receptors, convert_cif_to_pdb,clean_filename
 import re
-from skim2struct.DockingModule.parse import build_table
+from gene2struct.DockingModule.parse import build_table
 
 def cif2pdb(orign_dir, receptor_pdb_dir):
     # 加载用户输入的蛋白质文件夹,处理受体 (支持pdb直接复制 & cif转pdb)
