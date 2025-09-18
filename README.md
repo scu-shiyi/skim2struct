@@ -13,8 +13,6 @@ By uniting methodologies from **phylogenomics**, **structural biology**, and **f
 
 ## Installation
 
----
-
 ### 1. Clone the repository
 
 To begin, clone the repository from its GitHub source and navigate into the project directory.
