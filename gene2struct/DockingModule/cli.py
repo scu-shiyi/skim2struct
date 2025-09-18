@@ -1,11 +1,10 @@
-# skim2struct/DockingModule/cli.py
 
 import argparse
-from skim2struct.DockingModule.core import run
+from gene2struct.DockingModule.core import run
 import os
 def main():
     parser = argparse.ArgumentParser(
-        prog="skim2struct docking",
+        prog="gene2struct docking",
         description="Skim2Struct | DockingModule: Predict enzyme activity via molecular docking and phylogenetic context.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
