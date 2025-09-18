@@ -2,9 +2,9 @@ import os
 import subprocess
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from skim2struct.utils.PreReceptor import run_fpocket, parse_fpocket_pqr
-from skim2struct.utils.PreReceptor import convert_cif_to_pdb  # 兼容非标准文件
-from skim2struct.utils.PreReceptor import process_receptors
+from gene2struct.utils.PreReceptor import run_fpocket, parse_fpocket_pqr
+from gene2struct.utils.PreReceptor import convert_cif_to_pdb  # 兼容非标准文件
+from gene2struct.utils.PreReceptor import process_receptors
 import shutil
 
 class DockingExecutor:
@@ -18,7 +18,7 @@ class DockingExecutor:
 
         self.VINA_BIN = shutil.which('vina')
         if self.VINA_BIN is None:
-            raise FileNotFoundError("vina 未在 PATH 中找到，请检查 Conda 环境")
+            raise FileNotFoundError("vina not found in PATH. Please check your Conda environment.")
         
     def collect_tasks(self):
         tasks = []
@@ -26,16 +26,16 @@ class DockingExecutor:
             for file in files:
                 if file.endswith('.pdb'):
                     receptor_pdb_file = os.path.join(root, file)
-                    gene_name = Path(root).name  # 直接用父文件夹名当gene名
+                    gene_name = Path(root).name  
 
                     if gene_name not in self.gene_ligand_map:
                         continue
 
-                    # 构造pdbqt文件路径
+
                     relative_subfolder = os.path.relpath(root, self.receptor_pdb_dir)
                     receptor_pdbqt_file = os.path.join(self.receptor_pdbqt_dir, relative_subfolder, file.replace(".pdb", ".pdbqt"))
                     if not Path(receptor_pdbqt_file).exists():
-                        print(f"❌ 缺失受体pdbqt: {receptor_pdbqt_file}")
+                        print(f"[ERROR] Missing receptor PDBQT: {receptor_pdbqt_file}")
                         continue
 
                     ligands = self.gene_ligand_map[gene_name]
@@ -44,39 +44,36 @@ class DockingExecutor:
                         if Path(ligand_pdbqt_file).exists():
                             tasks.append((receptor_pdb_file, receptor_pdbqt_file, ligand_pdbqt_file, gene_name, ligand_name))
                         else:
-                            print(f"⚠️ 缺失配体: {ligand_pdbqt_file}")
+                            print(f"[WARN] Missing ligand PDBQT: {ligand_pdbqt_file}")
         return tasks
 
     def run_task(self, args):
         receptor_pdb_file, receptor_pdbqt_file, ligand_pdbqt_file, gene_name, ligand_name = args
         receptor_name = Path(receptor_pdb_file).stem
 
-        # fpocket 预测口袋 (支持缓存 + 重试逻辑)
         fpocket_dir = os.path.join(self.temp_center, gene_name, f"{receptor_name}_out")
-        # 先尝试从缓存读取
         if Path(fpocket_dir).exists():
             fpocket_out = fpocket_dir
             center, size = parse_fpocket_pqr(fpocket_out)
             if center is None:
                 fpocket_out = run_fpocket(str(receptor_pdb_file), str(self.temp_center))
                 if not fpocket_out:
-                    print(f"❌ fpocket运行失败: {receptor_name}")
+                    print(f"[ERROR] fpocket failed: {receptor_name}")
                     return
                 center, size = parse_fpocket_pqr(fpocket_out)
                 if center is None:
-                    print(f"❌ fpocket解析仍失败: {receptor_name}")
+                    print(f"[ERROR] fpocket parsing failed: {receptor_name}")
                     return
         else:
             fpocket_out = run_fpocket(str(receptor_pdb_file), str(self.temp_center), gene_name)
             if not fpocket_out:
-                print(f"❌ fpocket失败: {receptor_name}")
+                print(f"[ERROR] fpocket failed: {receptor_name}")
                 return
             center, size = parse_fpocket_pqr(fpocket_out)
             if center is None:
-                print(f"❌ fpocket解析失败: {receptor_name}")
+                print(f"[ERROR] fpocket parsing failed: {receptor_name}")
                 return
 
-        # docking 目录: 采用统一规范命名
         out_dir = os.path.join(self.docking_dir, gene_name, f"{gene_name}__{receptor_name}__{ligand_name}")
         os.makedirs(out_dir, exist_ok=True)
 
@@ -91,12 +88,11 @@ class DockingExecutor:
 
         try:
             subprocess.run([self.VINA_BIN, "--config", vina_config], check=True)
-            print(f"✅ 完成对接: {gene_name} x {ligand_name}")
+            print(f"[OK] Docking completed: {gene_name} x {ligand_name}")
         except subprocess.CalledProcessError as e:
-            print(f"❌ vina失败: {e}")
+            print(f"[ERROR] vina failed: {e}")
 
     def run_all(self):
-    # 先串行执行 fpocket
         for root, _, files in os.walk(self.receptor_pdb_dir):
             for file in files:
                 if file.endswith('.pdb'):
@@ -105,7 +101,7 @@ class DockingExecutor:
                     gene_name = os.path.basename(root)
                     fpocket_dir = os.path.join(self.temp_center, f"{receptor_name}_out")
                     if not Path(fpocket_dir).exists():
-                        print(f"📦 运行 fpocket: {receptor_name}")
+                        print(f"[INFO] Running fpocket: {receptor_name}")
                         run_fpocket(receptor_pdb_file, self.temp_center, gene_name)
 
         tasks = self.collect_tasks()
