@@ -27,27 +27,24 @@ cd Gene2Struct
 ### 2. Install MGLTools (Optional)
 
 We recommend that users manually download the MGLTools package and place it under the utils/ directory:
-- Download  [mgltools](https://ccsb.scripps.edu/mgltools/downloads/) 
-- Place the extracted folder under the `Gene2Struct/gene2struct/utilsutils/` directory:
+- Download  [MGLTools](https://ccsb.scripps.edu/mgltools/downloads/) .
+- Place the extracted folder under the `Gene2Struct/gene2struct/utilsutils/` directory.
 
 ### 3. Configure the environment
 
 You can either use the provided Conda environment file or set up packages manually.
 
-Option A (recommended): Build from the YAML file
+Option 1 : Build from the YAML file
 
 ```bash
 conda env create -f environment.yaml
 conda activate gene2struct
 ```
 
-Option B (manual): Install dependencies individually
+Option 2: Install dependencies individually
 
 ```bash
-conda create -n gene2struct python=3.11
-conda activate gene2struct
-# Install required packages
-conda install -c bioconda 
+conda install -c bioconda iqtree trimal pal2nal fpocket openbabel paml autodock-vina
 ```
 
 ### 4. Install the package
