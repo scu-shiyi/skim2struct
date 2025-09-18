@@ -1,8 +1,8 @@
-# skim2struct/TreeConservationModule/heatmap_utils.py
+# gene2struct/TreeConservationModule/heatmap_utils.py
 
 import pandas as pd
 import ast
-from skim2struct.utils.EvoScoring import position_entropy
+from gene2struct.utils.EvoScoring import position_entropy
 
 def compute_entropy_matrix(fasta_path: str, output_dir: str) -> str:
     return position_entropy(fasta_path, output_dir)
