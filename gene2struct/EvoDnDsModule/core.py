@@ -1,6 +1,6 @@
-# skim2struct/EvoDnDsModule/core.py
+# gene2struct/EvoDnDsModule/core.py
 from pathlib import Path
-from skim2struct.EvoDnDsModule.RunEvoDnDs import RunEvoDnDs
+from gene2struct.EvoDnDsModule.RunEvoDnDs import RunEvoDnDs
 
 def run(args):
     fasta_input = str(Path(args.fasta_input).resolve())
