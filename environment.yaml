@@ -1,5 +1,4 @@
-# environment.yml for Skim2Struct
-name: skim2struct
+name: gene2struct
 channels:
   - bioconda
   - conda-forge
@@ -7,10 +6,12 @@ channels:
 dependencies:
   - python=3.12
   - iqtree
-  - hyphy=2.5.71 
+  - trimal
+  - pal2nal
   - fpocket
   - autodock-vina
   - openbabel
+  - paml
   - pip
   - pip:
       - --index-url https://pypi.tuna.tsinghua.edu.cn/simple
@@ -21,3 +22,5 @@ dependencies:
       - numpy
       - requests
       - psutil
+      - ete3
+      - scipy
