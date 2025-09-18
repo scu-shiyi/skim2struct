@@ -1,7 +1,6 @@
-# skim2struct/DockingModule/core.py  (updated for AutoDocking wrapper)
 from pathlib import Path
 from typing import Optional
-from skim2struct.DockingModule.AutoDocking import AutoDocking
+from gene2struct.DockingModule.AutoDocking import AutoDocking
 
 
 
