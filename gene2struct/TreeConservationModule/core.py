@@ -1,5 +1,5 @@
 # TreeConservationModule/core.py
-from skim2struct.TreeConservationModule.RunTreeConservation import RunTreeConservation
+from gene2struct.TreeConservationModule.RunTreeConservation import RunTreeConservation
 from pathlib import Path
 
 
