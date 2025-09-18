@@ -1,5 +1,4 @@
 
-
 from pathlib import Path
 from typing import Dict, Tuple, Set
 import os
@@ -13,14 +12,13 @@ import re
 from gene2struct.DockingModule.parse import build_table
 
 def cif2pdb(orign_dir, receptor_pdb_dir):
-    # 加载用户输入的蛋白质文件夹,处理受体 (支持pdb直接复制 & cif转pdb)
     for gene in os.listdir(orign_dir):
         gene_path = os.path.join(orign_dir, gene)
         if not os.path.isdir(gene_path):
             continue
 
         out_dir = os.path.join(receptor_pdb_dir, gene)
-        os.makedirs(out_dir, exist_ok=True)  # 保证目录存在
+        os.makedirs(out_dir, exist_ok=True)  
 
         for file in os.listdir(gene_path):
             src_path = os.path.join(gene_path, file)
@@ -36,13 +34,7 @@ def cif2pdb(orign_dir, receptor_pdb_dir):
 
 
 def parse_mapping(mapping_file: str) -> Tuple[Dict[str, list[str]], list[str], list[str]]:
-    """
-    使用 pandas 解析表格文件，返回：
-    - gene_ligand_map : dict[str, list[str]]
-    - ligand_list : list[str]
-    - genes_in_mapping : set[str]
-    支持 CSV / TXT（自动判断分隔符）
-    """
+
     def split_multiple(val):
         val = str(val).strip()
         for sep in [",", ";", "|", "/"]:
@@ -50,18 +42,18 @@ def parse_mapping(mapping_file: str) -> Tuple[Dict[str, list[str]], list[str], l
                 return [v.strip().replace(" ", "-") for v in val.split(sep) if v.strip()]
         return [val.replace(" ", "-")] if val else []
 
-    # 自动判断分隔符（如果失败可设定 sep 参数）
+
     try:
         df = pd.read_csv(mapping_file, sep=None, engine="python",encoding='utf-8-sig')
 
     except Exception as e:
-        raise ValueError(f"读取配体映射表失败：{e}")
+        raise ValueError(f"Failed to parse ligand mapping file: {e}")
 
-    # 标准化列名（不区分大小写）
+
     df.columns = [col.strip().capitalize() for col in df.columns]
     print(df.columns)
     if not {'Gene', 'Substrate', 'Product'}.issubset(df.columns):
-        raise ValueError("缺少必要列：Gene, Substrate, Product")
+        raise ValueError("Missing required columns: Gene, Substrate, Product")
 
     gene_ligand_map = {}
     ligand_set = set()
@@ -101,38 +93,35 @@ def AutoDocking(input_protein_dir, mapping_csv, output_dir, tree_path):
     os.makedirs(ligand_pdbqt, exist_ok=True)
 
     docking_dir = os.path.join(output_dir, 'docking')
-    # 1 处理蛋白质文件夹
     cif2pdb(input_protein_dir, receptor_pdb)
-    gene_list = [] # 读取到的基因
+    gene_list = [] 
     for gene in sorted(os.listdir(receptor_pdb)):
         gene_path = os.path.join(receptor_pdb, gene)
         if os.path.isdir(gene_path):
             valid = any(f.endswith(('.pdb', '.cif')) for f in os.listdir(gene_path))
             if valid:
                 gene_list.append(gene)
-    # 2 解析mapping_csv
+
     gene_ligand_map, ligand_set, genes = parse_mapping(mapping_csv)
-    # 3 下载配体文件，并处理为pdbqt格式
+
     if set(gene_list) == set(genes):
-        #  如果表格中通一个基因出现多次，且对应配体不同，？？？
         process_ligand(ligand_set, temp_ligand, ligand_pdb, ligand_pdbqt)
     else:
         print(set(gene_list))
         print(set(genes))
-        raise ValueError("请保证输入的文件夹包含的蛋白质名称与输入的表格中的基因名称一致")
+        raise ValueError("Gene names in protein folder and mapping CSV must match exactly.")
 
-    # 3 将蛋白质转化为pdbqt格式
+
     for root,_,files in os.walk(receptor_pdb):
         for file in files:
             if file.endswith(".pdb"):
                 src_file = os.path.join(root, file)
-                # 计算在 receptor_pdb_dir 下的相对路径
                 relative_path = os.path.relpath(root, receptor_pdb)
                 out_dir = os.path.join(receptor_pdbqt, relative_path)
                 os.makedirs(out_dir, exist_ok=True)
                 process_receptors(src_file, out_dir)
 
-    # 4 调用DockingExecutor
+
     executor = DockingExecutor(
         receptor_pdb_dir = receptor_pdb,
         receptor_pdbqt_dir = receptor_pdbqt,
@@ -150,11 +139,3 @@ def AutoDocking(input_protein_dir, mapping_csv, output_dir, tree_path):
 
     plot(row_binding_energy, catalytic_activity_matrix, tree_path, phylo_activity_heatmap)
 
-
-
-
-
-# def make_heatmap(out_dir: Path, mapping: Dict[str, Tuple[str, str]]):
-#     docking_dir = out_dir / "docking"
-#     table_data = [(gene, subs, prod) for gene, (subs, prod) in mapping.items()]
-#     return generate_heatmap(docking_dir, table_data)
