@@ -1,4 +1,4 @@
-# skim2struct/TreeConservationModule/plot.py
+# gene2struct/TreeConservationModule/plot.py
 
 import matplotlib.pyplot as plt
 import seaborn as sns
