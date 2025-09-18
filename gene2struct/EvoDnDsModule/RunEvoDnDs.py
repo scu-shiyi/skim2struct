@@ -1,9 +1,9 @@
-# skim2struct/EvoDnDsModule/plot.py
+# gene2struct/EvoDnDsModule/plot.py
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from skim2struct.utils.EvoScoring import scoring
-from skim2struct.EvoDnDsModule.calcul_dnds import run_dnds_parallel
+from gene2struct.utils.EvoScoring import scoring
+from gene2struct.EvoDnDsModule.calcul_dnds import run_dnds_parallel
 from pathlib import Path
 import random
 import glob
