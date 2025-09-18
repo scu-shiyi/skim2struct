@@ -10,9 +10,9 @@ import statistics
 import subprocess
 import sys
 
-import skim2struct.Geneminer2.build_trimed as build_trimed
-import skim2struct.Geneminer2.fix_alignment as fix_alignment
-import skim2struct.Geneminer2.muscle_wrapper as muscle_wrapper
+import gene2struct.Geneminer2.build_trimed as build_trimed
+import gene2struct.Geneminer2.fix_alignment as fix_alignment
+import gene2struct.Geneminer2.muscle_wrapper as muscle_wrapper
 
 COMMAND_HELP = '''
 filter    Reference-based filtering of raw reads
