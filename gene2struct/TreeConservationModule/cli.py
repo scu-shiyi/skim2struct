@@ -1,15 +1,15 @@
-# skim2struct/TreeConservationModule/tree_conservation_cli.py
+# gene2struct/TreeConservationModule/tree_conservation_cli.py
 # 只做调试使用
 
 import argparse
 import os
 from pathlib import Path
-from skim2struct.TreeConservationModule.core import run
+from gene2struct.TreeConservationModule.core import run
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="skim2struct siteview",
-        description="Skim2Struct | SiteView module: Visualize site-wise heterogeneity (positive selection and entropy) combined with a phylogenetic tree.",
+        prog="gene2struct siteview",
+        description="Gene2Struct | SiteView module: Visualize site-wise heterogeneity (positive selection and entropy) combined with a phylogenetic tree.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
     
     parser.add_argument("-f", "--fasta_path", required=True,
