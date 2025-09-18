@@ -1,7 +1,7 @@
-from skim2struct.utils.site_model import run_pair_model
+from gene2struct.utils.site_model import run_pair_model
 from pathlib import Path
 import os
-from skim2struct.utils.Phylip_Prepare import prepare_paml_input1
+from gene2struct.utils.Phylip_Prepare import prepare_paml_input1
 import re
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
