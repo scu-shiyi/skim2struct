@@ -1,13 +1,13 @@
-# skim2struct/EvoDnDsModule/cli.py
+# gene2struct/EvoDnDsModule/cli.py
 
 import argparse
 import os
-from skim2struct.EvoDnDsModule.core import run
+from gene2struct.EvoDnDsModule.core import run
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="skim2struct evoselect",
-        description="Skim2Struct | EvoDnDs: Batch dN/dS and evolutionary scoring module",
+        prog="gene2struct evoselect",
+        description="Gene2Struct | EvoDnDs: Batch dN/dS and evolutionary scoring module",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
